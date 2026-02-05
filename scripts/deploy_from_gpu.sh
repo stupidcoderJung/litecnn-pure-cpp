@@ -10,7 +10,7 @@ GPU_PASSWORD="1"
 LOCAL_PROJECT_DIR="$HOME/projects/litecnn-pure-cpp"
 WEIGHTS_DIR="$LOCAL_PROJECT_DIR/weights"
 BUILD_DIR="$LOCAL_PROJECT_DIR/build"
-SERVER_PORT="8891"
+SERVER_PORT="8892"  # TO-BE 모델 (자동 배포)
 LOG_FILE="/tmp/litecnn-deploy.log"
 
 # 색상 출력
@@ -65,11 +65,11 @@ log "Step 2/6: 가중치 변환 중 (PyTorch → Binary)..."
 cd "$LOCAL_PROJECT_DIR"
 python3 extract_weights.py \
     "$WEIGHTS_DIR/$CHECKPOINT_FILENAME" \
-    "$WEIGHTS_DIR/model_weights.bin" || \
+    "$WEIGHTS_DIR/model_8892.bin" || \
     error "가중치 변환 실패"
 
-BIN_SIZE=$(du -h "$WEIGHTS_DIR/model_weights.bin" | cut -f1)
-log "✅ 변환 완료: $BIN_SIZE"
+BIN_SIZE=$(du -h "$WEIGHTS_DIR/model_8892.bin" | cut -f1)
+log "✅ 변환 완료: $BIN_SIZE (TO-BE 모델)"
 
 # Step 3: 클래스 파일 동기화
 log "Step 3/6: 클래스 파일 동기화 중..."
@@ -114,7 +114,7 @@ cd "$LOCAL_PROJECT_DIR"
 nohup "$BUILD_DIR/litecnn_server" \
     --port "$SERVER_PORT" \
     --breeds "breed_classes.json" \
-    --weights "$WEIGHTS_DIR/model_weights.bin" \
+    --weights "$WEIGHTS_DIR/model_8892.bin" \
     > "/tmp/litecnn_server_$SERVER_PORT.log" 2>&1 &
 
 sleep 3

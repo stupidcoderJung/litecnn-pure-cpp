@@ -2,18 +2,22 @@
 
 **초경량 딥러닝 추론 서버** - PyTorch 모델을 순수 C++로 구현한 경량 추론 엔진
 
-[![Memory](https://img.shields.io/badge/Memory-26MB-brightgreen.svg)](https://github.com)
+[![Memory](https://img.shields.io/badge/Memory-7MB-brightgreen.svg)](https://github.com)
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](https://github.com)
+[![Dual Server](https://img.shields.io/badge/Dual%20Server-AS--IS%20%2B%20TO--BE-orange.svg)](https://github.com)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-Auto%20Deploy-success.svg)](https://github.com)
 
 ## 🎯 특징
 
-- ⚡ **초경량**: 26MB 메모리 사용 (PyTorch 대비 92% 절감)
+- ⚡ **초경량**: 7MB 메모리 사용 (PyTorch 대비 95% 절감)
 - 🚫 **제로 의존성**: 헤더 온리 라이브러리만 사용, 런타임 의존성 없음
-- 🌏 **한국어 지원**: 120개 견종의 영문/한글 이름 제공
+- 🌏 **한국어 지원**: 131개 견종의 영문/한글 이름 제공
 - 🔌 **HTTP API**: RESTful API로 즉시 사용 가능
 - 🏗️ **프로덕션 준비**: 에러 핸들링, 자동 전처리, JSON 응답
-- 📦 **단일 바이너리**: 803KB 실행 파일 하나로 완결
+- 📦 **단일 바이너리**: 908KB 실행 파일 하나로 완결
+- 🔬 **듀얼 서버**: AS-IS (프로덕션) + TO-BE (실험) 동시 운영
+- 🤖 **CI/CD**: GPU 서버 학습 완료 시 자동 배포 (~15초)
 
 ## 📊 성능 비교
 
@@ -22,7 +26,13 @@
 | FastAPI + PyTorch | 322 MB | - | Python, PyTorch, FastAPI |
 | LibTorch C++ | 130 MB | 60% | LibTorch (~50-70MB) |
 | ONNX Runtime | 102 MB | 68% | ONNX Runtime (~40MB) |
-| **Pure C++** | **26 MB** | **92%** | **없음** ✅ |
+| **Pure C++** | **7 MB** | **98%** | **없음** ✅ |
+
+**실측 (M1 MacBook Air):**
+- 바이너리 크기: 908KB
+- 메모리 사용량: 7.3MB (포트당)
+- 배포 시간: ~15초 (GPU 서버 → M1)
+- 추론 시간: <100ms
 
 ## 🚀 빠른 시작
 
@@ -67,8 +77,20 @@ python extract_weights.py /path/to/checkpoint.pth weights/model_weights.bin
 
 ### 실행
 
+#### 단일 서버
+
 ```bash
-./build/litecnn_server --port 8891 --breeds breed_classes.json
+./build/litecnn_server --port 8891 --breeds breed_classes.json --weights weights/model_weights.bin
+```
+
+#### 듀얼 서버 (AS-IS + TO-BE)
+
+```bash
+# 모든 서버 시작
+./scripts/server_manager.sh start all
+
+# 상태 확인
+./scripts/server_manager.sh status
 ```
 
 옵션:
@@ -301,6 +323,73 @@ JSON 매핑만으로 다국어 지원이 간단히 해결됩니다:
 - [ ] **시스템 서비스**: systemd/launchd 통합
 - [ ] **벤치마크**: 자동화된 성능 테스트
 
+## 🔬 듀얼 서버 아키텍처
+
+AS-IS (프로덕션)와 TO-BE (실험) 모델을 동시에 운영하여 안전한 모델 비교 및 배포가 가능합니다.
+
+```
+포트 8891 (AS-IS)  → weights/model_8891.bin (수동 배포, 안정 버전)
+포트 8892 (TO-BE)  → weights/model_8892.bin (자동 배포, 실험 버전)
+```
+
+### 서버 관리
+
+```bash
+# 모든 서버 시작/중지/재시작
+./scripts/server_manager.sh [start|stop|restart] all
+
+# 개별 서버 제어
+./scripts/server_manager.sh restart 8891  # AS-IS만 재시작
+
+# 상태 확인
+./scripts/server_manager.sh status
+```
+
+### A/B 비교
+
+```bash
+# AS-IS
+curl -X POST http://localhost:8891/predict -F "image=@test.jpg"
+
+# TO-BE
+curl -X POST http://localhost:8892/predict -F "image=@test.jpg"
+```
+
+상세 문서: [DUAL_SERVER.md](docs/DUAL_SERVER.md)
+
+## 🤖 CI/CD 파이프라인
+
+GPU 서버에서 학습 완료 시 자동으로 TO-BE 모델을 배포합니다 (~15초).
+
+```
+GPU 서버 학습 완료
+    ↓ (MD5 해시 변경 감지)
+체크포인트 다운로드 (SCP)
+    ↓
+PyTorch → Binary 변환
+    ↓
+C++ 빌드
+    ↓
+TO-BE 서버 재시작 (8892)
+    ↓
+✅ 배포 완료
+```
+
+### 수동 배포
+
+```bash
+./scripts/deploy_from_gpu.sh
+```
+
+### 자동 배포 (30분마다)
+
+```bash
+# macOS launchd 등록
+launchctl load ~/Library/LaunchAgents/com.litecnn.autodeploy.plist
+```
+
+상세 문서: [CICD.md](docs/CICD.md)
+
 ## 📝 ADR (Architecture Decision Records)
 
 상세한 아키텍처 결정 과정은 [ADR-001](docs/adr/001-pure-cpp-implementation.md)을 참고하세요.
@@ -323,6 +412,7 @@ MIT License
 
 ---
 
-**Date**: 2026-02-05  
-**Memory Usage**: 26MB (52% of target)  
+**Date**: 2026-02-06  
+**Memory Usage**: 7MB per server (95% reduction from PyTorch)  
+**Dual Server**: AS-IS (8891) + TO-BE (8892)  
 **Status**: Production Ready ✅
