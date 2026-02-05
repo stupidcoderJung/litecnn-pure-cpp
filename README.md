@@ -1,0 +1,328 @@
+# LiteCNN Pure C++ Inference Server 🖤
+
+**초경량 딥러닝 추론 서버** - PyTorch 모델을 순수 C++로 구현한 경량 추론 엔진
+
+[![Memory](https://img.shields.io/badge/Memory-26MB-brightgreen.svg)](https://github.com)
+[![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](https://github.com)
+
+## 🎯 특징
+
+- ⚡ **초경량**: 26MB 메모리 사용 (PyTorch 대비 92% 절감)
+- 🚫 **제로 의존성**: 헤더 온리 라이브러리만 사용, 런타임 의존성 없음
+- 🌏 **한국어 지원**: 120개 견종의 영문/한글 이름 제공
+- 🔌 **HTTP API**: RESTful API로 즉시 사용 가능
+- 🏗️ **프로덕션 준비**: 에러 핸들링, 자동 전처리, JSON 응답
+- 📦 **단일 바이너리**: 803KB 실행 파일 하나로 완결
+
+## 📊 성능 비교
+
+| 구현 방식 | 메모리 사용량 | 감소율 | 의존성 |
+|-----------|---------------|--------|--------|
+| FastAPI + PyTorch | 322 MB | - | Python, PyTorch, FastAPI |
+| LibTorch C++ | 130 MB | 60% | LibTorch (~50-70MB) |
+| ONNX Runtime | 102 MB | 68% | ONNX Runtime (~40MB) |
+| **Pure C++** | **26 MB** | **92%** | **없음** ✅ |
+
+## 🚀 빠른 시작
+
+### 필요 사항
+
+- C++17 호환 컴파일러 (GCC 7+, Clang 5+, MSVC 2017+)
+- CMake 3.14+
+- Python 3.7+ (가중치 추출용, 선택 사항)
+
+### 빌드
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd litecnn-pure-cpp
+
+# Build
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j4
+
+# Binary: build/litecnn_server (803KB)
+```
+
+### 모델 다운로드
+
+사전 학습된 가중치를 Hugging Face에서 다운로드:
+
+```bash
+# 모델 가중치 다운로드
+wget https://huggingface.co/2c6829/litecnn-pure-cpp/resolve/main/model_weights.bin -P weights/
+
+# 품종 클래스 다운로드 (한국어 지원)
+wget https://huggingface.co/2c6829/litecnn-pure-cpp/resolve/main/breed_classes.json
+```
+
+또는 자신의 PyTorch 체크포인트에서 추출:
+
+```bash
+python extract_weights.py /path/to/checkpoint.pth weights/model_weights.bin
+```
+
+### 실행
+
+```bash
+./build/litecnn_server --port 8891 --breeds breed_classes.json
+```
+
+옵션:
+- `--port PORT`: 서버 포트 (기본값: 8080)
+- `--weights PATH`: 가중치 파일 경로 (기본값: `weights/model_weights.bin`)
+- `--breeds PATH`: 품종 JSON 경로 (기본값: `breed_classes.json`)
+
+## 📡 API 사용법
+
+### Health Check
+
+```bash
+curl http://localhost:8891/health
+```
+
+응답:
+```json
+{"status": "ok"}
+```
+
+### 이미지 추론
+
+```bash
+curl -X POST http://localhost:8891/predict \
+  -F "image=@dog.jpg"
+```
+
+응답:
+```json
+{
+  "predictions": [
+    {
+      "class_id": 81,
+      "score": 0.9523,
+      "breed_en": "Border collie",
+      "breed_ko": "보더 콜리"
+    },
+    {
+      "class_id": 106,
+      "score": 0.0321,
+      "breed_en": "Samoyed",
+      "breed_ko": "사모예드"
+    }
+  ]
+}
+```
+
+## 🏗️ 아키텍처
+
+### 전체 구조
+
+```
+HTTP Request (JPEG/PNG)
+    ↓
+Image Decoder (stb_image)
+    ↓
+Resize → 224x224 (stb_image_resize)
+    ↓
+Normalize (ImageNet mean/std)
+    ↓
+LiteCNNPro Forward Pass
+    ├─ Stem (Conv2D + BN + ReLU6)
+    ├─ 7x DepthwiseSeparableConv blocks
+    │   └─ SE (Squeeze-Excitation) attention
+    └─ Classifier (512→256→120)
+    ↓
+Softmax + Top-5
+    ↓
+JSON Response (breed names + scores)
+```
+
+### 모델: LiteCNNPro
+
+- **파라미터**: 600K
+- **클래스**: 120 (Stanford Dogs)
+- **입력**: 224×224 RGB
+- **출력**: 120-dim logits
+
+**레이어 구성**:
+1. Stem: Conv2D(3→32) + BatchNorm + ReLU6
+2. Features: 7x Depthwise Separable Conv blocks
+   - Block 0: 32→64 (stride 2)
+   - Block 1: 64→128 (stride 2)
+   - Block 2-3: 128→256 (stride 2)
+   - Block 4-6: 256→512
+   - SE (Squeeze-Excitation) attention
+3. Classifier: AdaptiveAvgPool → FC(512→256) → FC(256→120)
+
+### 의존성 (헤더 온리)
+
+```
+third_party/
+├── httplib.h          # HTTP 서버 (cpp-httplib)
+├── stb_image.h        # 이미지 디코딩
+├── stb_image_resize2.h # 이미지 리사이징
+└── json.hpp           # JSON (nlohmann/json)
+```
+
+모든 라이브러리가 헤더 온리이므로 **런타임 의존성 없음**.
+
+## 📂 프로젝트 구조
+
+```
+litecnn-pure-cpp/
+├── CMakeLists.txt          # CMake 빌드 설정
+├── README.md               # 이 파일
+├── breed_classes.json      # 120개 견종 영문/한글 이름
+├── build/                  # 빌드 결과물
+│   └── litecnn_server      # 실행 파일 (803KB)
+├── docs/
+│   └── adr/                # Architecture Decision Records
+│       └── 001-pure-cpp-implementation.md
+├── include/                # 헤더 파일
+│   ├── tensor.h            # Tensor 구조체
+│   ├── layers.h            # CNN 레이어 구현
+│   ├── model.h             # LiteCNNPro 모델
+│   └── server.h            # HTTP 서버
+├── src/                    # 구현 파일
+│   ├── tensor.cpp          # Tensor 연산 (114줄)
+│   ├── layers.cpp          # CNN 레이어 (356줄)
+│   ├── model.cpp           # 모델 forward (246줄)
+│   ├── server.cpp          # HTTP 서버 (162줄)
+│   └── main.cpp            # Entry point (38줄)
+├── third_party/            # 헤더 온리 라이브러리
+├── scripts/                # 유틸리티 스크립트
+│   ├── extract_weights_remote.sh
+│   ├── create_dummy_weights.py
+│   └── test_memory.sh
+└── weights/                # 모델 가중치
+    └── model_weights.bin   # 4.0MB
+```
+
+**총 코드**: 916줄 (주석 제외)
+
+## 🔧 구현 세부사항
+
+### Tensor 구조
+
+```cpp
+struct Tensor {
+    std::vector<int> shape;      // [N, C, H, W]
+    std::vector<float> data;     // NCHW 메모리 레이아웃
+};
+```
+
+### 구현된 레이어
+
+1. **Conv2D**: Standard & Depthwise convolution
+2. **BatchNorm2D**: Inference mode (running mean/var)
+3. **Linear**: Fully connected layer
+4. **AdaptiveAvgPool2D**: Global average pooling
+5. **ReLU6**: Clipped ReLU activation
+6. **Sigmoid**: Logistic activation
+7. **SE Block**: Squeeze-Excitation channel attention
+8. **Depthwise Separable Conv**: Depthwise + Pointwise
+
+### 가중치 포맷
+
+Binary format (Big Endian):
+
+```
+[Magic: "LCNN"] [Version: uint32] [Num Tensors: uint32]
+
+For each tensor:
+  [Name Length: uint32] [Name: char[]]
+  [Rank: uint32] [Shape: uint32[rank]]
+  [Data: float[product(shape)]]
+```
+
+Example:
+```
+4C 43 4E 4E  00 00 00 01  00 00 00 6C  00 00 00 13  # "LCNN", v1, 108 tensors, name_len=19
+73 74 65 6D 2E 30 2E 77 65 69 67 68 74           # "stem.0.weight"
+00 00 00 04                                       # rank=4
+00 00 00 20 00 00 00 03 00 00 00 03 00 00 00 03  # shape=[32,3,3,3]
+3F 80 00 00 BF 00 00 00 ...                       # float data
+```
+
+## 🎓 학습한 교훈
+
+### 1. 의존성이 적을수록 메모리 효율적
+
+PyTorch/LibTorch의 메모리 사용량 대부분은 **런타임 라이브러리**가 차지합니다:
+- LibTorch: ~50-70MB (추론 엔진 + CUDA 지원 등)
+- ONNX Runtime: ~40MB (최적화된 추론 전용 엔진)
+
+Pure C++는 **필요한 레이어만 구현**하므로 메모리 절약이 극대화됩니다.
+
+### 2. 헤더 온리 라이브러리의 장점
+
+- **배포 단순화**: 단일 바이너리, 설치 불필요
+- **최적화 가능성**: 컴파일 타임에 전체 코드 최적화
+- **이식성**: 플랫폼 간 이동 용이
+
+### 3. 조기 최적화가 필요할 때
+
+메모리 제약이 **명확하고 엄격**한 경우 (예: < 50MB), 처음부터 Pure C++ 고려하는 것이 효율적입니다.
+
+### 4. 한국어 지원은 쉽다
+
+JSON 매핑만으로 다국어 지원이 간단히 해결됩니다:
+
+```json
+{
+  "81": {
+    "en": "Border collie",
+    "ko": "보더 콜리"
+  }
+}
+```
+
+## 🔮 향후 개선 사항
+
+### 성능 최적화
+
+- [ ] **SIMD 최적화**: AVX2/NEON을 활용한 벡터화
+- [ ] **멀티스레딩**: 배치 추론 병렬 처리
+- [ ] **Quantization**: INT8 양자화로 메모리 50% 추가 절감
+
+### 기능 추가
+
+- [ ] **배치 추론**: 여러 이미지 동시 처리
+- [ ] **웹캠 스트리밍**: 실시간 비디오 추론
+- [ ] **모델 업데이트**: 런타임 hot-reload
+- [ ] **메트릭**: Prometheus 통합
+
+### 배포
+
+- [ ] **Docker 이미지**: Alpine Linux 기반 (~10MB)
+- [ ] **시스템 서비스**: systemd/launchd 통합
+- [ ] **벤치마크**: 자동화된 성능 테스트
+
+## 📝 ADR (Architecture Decision Records)
+
+상세한 아키텍처 결정 과정은 [ADR-001](docs/adr/001-pure-cpp-implementation.md)을 참고하세요.
+
+## 📄 라이선스
+
+MIT License
+
+## 🙏 감사의 말
+
+- **cpp-httplib**: 간단하고 강력한 HTTP 서버
+- **stb**: 신의 선물 같은 헤더 온리 라이브러리
+- **nlohmann/json**: 최고의 C++ JSON 라이브러리
+
+## 🔗 Links
+
+- **GitHub**: https://github.com/stupidcoderJung/litecnn-pure-cpp
+- **Hugging Face Model**: https://huggingface.co/2c6829/litecnn-pure-cpp
+- **Issues**: https://github.com/stupidcoderJung/litecnn-pure-cpp/issues
+
+---
+
+**Date**: 2026-02-05  
+**Memory Usage**: 26MB (52% of target)  
+**Status**: Production Ready ✅
