@@ -388,7 +388,9 @@ TO-BE 서버 재시작 (8892)
 launchctl load ~/Library/LaunchAgents/com.litecnn.autodeploy.plist
 ```
 
-상세 문서: [CICD.md](docs/CICD.md), [AUTOMATION.md](docs/AUTOMATION.md)
+**알림**: Discord + Telegram 동시 전송 (Telegram 설정 필요)
+
+상세 문서: [CICD.md](docs/CICD.md), [AUTOMATION.md](docs/AUTOMATION.md), [TELEGRAM_SETUP.md](docs/TELEGRAM_SETUP.md)
 
 ## 📝 ADR (Architecture Decision Records)
 

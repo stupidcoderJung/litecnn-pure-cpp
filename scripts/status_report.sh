@@ -33,7 +33,17 @@ last_deploy_info() {
         local hash=$(cat "$HOME/.litecnn_last_deploy.txt")
         echo "📦 **마지막 배포**"
         echo "- TO-BE 해시: \`${hash:0:8}...\`"
-        echo "- 파일: \`~/.litecnn_last_deploy.txt\`"
+        
+        # 상세 정보 파일이 있으면 추가 표시
+        if [ -f "$HOME/.litecnn_last_deploy_info.json" ]; then
+            local cycle=$(grep -o '"cycle":"[^"]*"' "$HOME/.litecnn_last_deploy_info.json" | cut -d'"' -f4)
+            local model=$(grep -o '"model":"[^"]*"' "$HOME/.litecnn_last_deploy_info.json" | cut -d'"' -f4)
+            local path=$(grep -o '"path":"[^"]*"' "$HOME/.litecnn_last_deploy_info.json" | cut -d'"' -f4)
+            
+            echo "- Cycle: \`$cycle\`"
+            echo "- 모델명: \`$model\`"
+            echo "- 경로: \`$path\`"
+        fi
     else
         echo "📦 **마지막 배포**: 없음"
     fi
@@ -73,5 +83,5 @@ echo ""
 
 # Discord 전송 (옵션)
 if [ "$1" == "--discord" ]; then
-    "$SCRIPT_DIR/notify_discord.sh" "$REPORT"
+    "$SCRIPT_DIR/notify.sh" "$REPORT"
 fi

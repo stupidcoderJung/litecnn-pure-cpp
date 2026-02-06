@@ -51,7 +51,14 @@ launchctl start com.litecnn.autodeploy
 tail -f /tmp/litecnn-autodeploy.log
 ```
 
-## 📢 Discord 알림
+## 📢 멀티 채널 알림 (Discord + Telegram)
+
+모든 배포 알림이 **Discord + Telegram**으로 동시 전송됩니다.  
+Telegram 미설정 시 Discord만 전송되며, 시스템은 정상 작동합니다.
+
+### Telegram 설정
+
+상세 가이드: [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md)
 
 ### 알림 시나리오
 
@@ -77,8 +84,12 @@ launchd PID: 11373 ✅
 GPU 서버에서 새로운 모델이 학습되었습니다.
 TO-BE 서버(8892) 자동 배포를 시작합니다...
 
-이전 해시: `a3f8d9e2...`
-새 해시: `b7c4e1f3...`
+📊 모델 정보:
+- Cycle: cycle 8
+- 모델명: best_model_cycle8.pth
+- 경로: ~/mycnn/checkpoints_cycle8/best_model_cycle8.pth
+- 이전 해시: a3f8d9e2...
+- 새 해시: b7c4e1f3...
 ```
 
 #### 3. 배포 완료
@@ -86,9 +97,13 @@ TO-BE 서버(8892) 자동 배포를 시작합니다...
 ✅ 배포 완료!
 TO-BE 서버(8892)에 새 모델이 배포되었습니다.
 
-해시: `b7c4e1f3...`
-포트: `http://localhost:8892/predict`
-시간: 2026-02-06 09:10:29
+📊 배포 정보:
+- Cycle: cycle 8
+- 모델명: best_model_cycle8.pth
+- 경로: ~/mycnn/checkpoints_cycle8/best_model_cycle8.pth
+- 해시: b7c4e1f3...
+- 포트: http://localhost:8892/predict
+- 시간: 2026-02-06 09:10:29
 ```
 
 #### 4. 배포 실패
@@ -97,17 +112,21 @@ TO-BE 서버(8892)에 새 모델이 배포되었습니다.
 TO-BE 서버(8892) 배포 중 오류가 발생했습니다.
 다음 주기(30분 후)에 재시도합니다.
 
-해시: `b7c4e1f3...`
-로그: `/tmp/litecnn-deploy.log`
+📊 실패 정보:
+- Cycle: cycle 8
+- 모델명: best_model_cycle8.pth
+- 경로: ~/mycnn/checkpoints_cycle8/best_model_cycle8.pth
+- 해시: b7c4e1f3...
+- 로그: /tmp/litecnn-deploy.log
 ```
 
 ### 수동 알림
 
 ```bash
-# Discord로 메시지 전송
-./scripts/notify_discord.sh "테스트 메시지"
+# Discord + Telegram 동시 전송
+./scripts/notify.sh "테스트 메시지"
 
-# 상태 리포트 전송
+# 상태 리포트 전송 (Discord + Telegram)
 ./scripts/status_report.sh --discord
 ```
 
@@ -145,7 +164,9 @@ TO-BE 서버(8892) 배포 중 오류가 발생했습니다.
 
 📦 마지막 배포
 - TO-BE 해시: `b7c4e1f3...`
-- 파일: `~/.litecnn_last_deploy.txt`
+- Cycle: `cycle 8`
+- 모델명: `best_model_cycle8.pth`
+- 경로: `~/mycnn/checkpoints_cycle8/best_model_cycle8.pth`
 
 🤖 자동 배포
 - 상태: 활성화 ✅
@@ -178,13 +199,18 @@ API 엔드포인트:
 4. TO-BE 서버(8892) 재시작
 5. Health Check
 
-### 3. `notify_discord.sh`
-**역할**: Discord 알림 전송
+### 3. `notify.sh`
+**역할**: 멀티 채널 알림 전송 (Discord + Telegram)
 
 **사용법**:
 ```bash
-./scripts/notify_discord.sh "메시지 내용"
+./scripts/notify.sh "메시지 내용"
 ```
+
+**동작**:
+- Discord #server-monitoring 채널로 전송
+- Telegram으로 전송 (설정되어 있는 경우)
+- Telegram 실패 시 자동 스킵
 
 ### 4. `status_report.sh`
 **역할**: 서버 상태 수집 및 리포트
@@ -310,6 +336,24 @@ sshpass -p '1' ssh love-lee@192.168.0.40 \
 
 ---
 
+## 📁 관련 파일
+
+- `scripts/notify.sh` - 멀티 채널 알림 (Discord + Telegram)
+- `scripts/watch_and_deploy.sh` - 자동 배포 메인 스크립트
+- `scripts/deploy_from_gpu.sh` - 실제 배포 로직
+- `scripts/status_report.sh` - 서버 상태 리포트
+- `~/Library/LaunchAgents/com.litecnn.autodeploy.plist` - launchd 설정
+- `~/.litecnn_last_deploy.txt` - 마지막 배포 해시
+- `~/.litecnn_last_deploy_info.json` - 마지막 배포 상세 정보 (cycle, 경로 등)
+
+## 📚 추가 문서
+
+- [Telegram 설정 가이드](TELEGRAM_SETUP.md)
+- [듀얼 서버 관리](DUAL_SERVER.md)
+- [CI/CD 파이프라인](CICD.md)
+
+---
+
 **작성**: 텔리크로 🖤  
 **마지막 업데이트**: 2026-02-06  
-**상태**: 활성화 ✅
+**상태**: 활성화 ✅ (Discord + Telegram 지원)
