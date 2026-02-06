@@ -46,3 +46,4 @@ test_*
 scripts/extract_weights_remote.sh
 scripts/create_dummy_weights.py
 weights/*.bin
+weights/*.pth

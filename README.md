@@ -388,7 +388,7 @@ TO-BE 서버 재시작 (8892)
 launchctl load ~/Library/LaunchAgents/com.litecnn.autodeploy.plist
 ```
 
-상세 문서: [CICD.md](docs/CICD.md)
+상세 문서: [CICD.md](docs/CICD.md), [AUTOMATION.md](docs/AUTOMATION.md)
 
 ## 📝 ADR (Architecture Decision Records)
 
