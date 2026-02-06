@@ -355,7 +355,7 @@ curl -X POST http://localhost:8891/predict -F "image=@test.jpg"
 curl -X POST http://localhost:8892/predict -F "image=@test.jpg"
 ```
 
-상세 문서: [DUAL_SERVER.md](docs/DUAL_SERVER.md)
+상세 문서: [DUAL_SERVER.md](docs/DUAL_SERVER.md), [AB_TESTING.md](docs/AB_TESTING.md)
 
 ## 🤖 CI/CD 파이프라인
 
