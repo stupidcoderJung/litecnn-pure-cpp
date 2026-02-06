@@ -1,0 +1,33 @@
+CXX = clang++
+CXXFLAGS = -std=c++17 -O3 -Wall -Wextra
+
+LIBTORCH_PATH = $(PWD)/libtorch
+LIBTORCH_INCLUDE = $(LIBTORCH_PATH)/include
+LIBTORCH_LIB = $(LIBTORCH_PATH)/lib
+
+INCLUDES = -I$(LIBTORCH_INCLUDE) \
+           -I$(LIBTORCH_INCLUDE)/torch/csrc/api/include \
+           -Iinclude \
+           -Ithird_party
+
+LDFLAGS = -L$(LIBTORCH_LIB) \
+          -Wl,-rpath,$(LIBTORCH_LIB) \
+          -ltorch \
+          -ltorch_cpu \
+          -lc10 \
+          -framework Accelerate \
+          -framework Metal \
+          -framework Foundation
+
+SRC = src/server_mps_configurable.cpp
+OUT = build/litecnn_server_mps_config
+
+all: $(OUT)
+
+$(OUT): $(SRC)
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SRC) -o $(OUT) $(LDFLAGS)
+	@echo "✅ Build complete: $(OUT)"
+
+clean:
+	rm -rf $(OUT)

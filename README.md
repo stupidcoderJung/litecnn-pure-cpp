@@ -476,3 +476,36 @@ curl -X POST http://localhost:8893/predict \
   }
 }
 ```
+
+## Dual MPS Server Architecture
+
+### Port Configuration
+- **8891**: Cycle 11 MPS (Production, 68.36% accuracy)
+  - Stable, proven model
+  - ~4-5ms inference
+  
+- **8892**: Cycle N MPS (Latest, experimental)
+  - Auto-deployed from GPU server
+  - Test new models before promotion to 8891
+
+### Usage
+```bash
+# Production (Cycle 11)
+curl -X POST http://192.168.0.59:8891/predict \
+  -F "image=@dog.jpg" | jq
+
+# Latest (Cycle N)
+curl -X POST http://192.168.0.59:8892/predict \
+  -F "image=@dog.jpg" | jq
+```
+
+### Deployment
+```bash
+# Deploy new cycle to 8892
+bash scripts/mps/deploy_latest.sh 14
+
+# If satisfied, promote to 8891:
+# 1. Stop 8891
+# 2. Convert and deploy new cycle to 8891
+# 3. Restart
+```
