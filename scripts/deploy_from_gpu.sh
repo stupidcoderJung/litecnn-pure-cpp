@@ -63,10 +63,17 @@ log "✅ 다운로드 완료: $CHECKPOINT_SIZE"
 # Step 2: PyTorch → Binary 변환
 log "Step 2/6: 가중치 변환 중 (PyTorch → Binary)..."
 cd "$LOCAL_PROJECT_DIR"
-python3 extract_weights.py \
+
+# Python 스크립트 실행 (에러 메시지 캡처)
+CONVERT_OUTPUT=$(python3 extract_weights.py \
     "$WEIGHTS_DIR/$CHECKPOINT_FILENAME" \
-    "$WEIGHTS_DIR/model_8892.bin" || \
-    error "가중치 변환 실패"
+    "$WEIGHTS_DIR/model_8892.bin" 2>&1)
+CONVERT_STATUS=$?
+
+if [ $CONVERT_STATUS -ne 0 ]; then
+    echo "$CONVERT_OUTPUT" >> "$LOG_FILE"
+    error "가중치 변환 실패: $CONVERT_OUTPUT"
+fi
 
 BIN_SIZE=$(du -h "$WEIGHTS_DIR/model_8892.bin" | cut -f1)
 log "✅ 변환 완료: $BIN_SIZE (TO-BE 모델)"
@@ -79,10 +86,11 @@ sshpass -p "$GPU_PASSWORD" ssh -o StrictHostKeyChecking=no $GPU_SERVER \
 
 if [ -f /tmp/class_count.txt ]; then
     CLASS_COUNT=$(cat /tmp/class_count.txt)
-    if [ "$CLASS_COUNT" != "131" ]; then
-        warn "클래스 수 변경 감지: 131 → $CLASS_COUNT"
+    if [ "$CLASS_COUNT" != "130" ] && [ "$CLASS_COUNT" != "131" ]; then
+        warn "클래스 수 변경 감지: 130/131 → $CLASS_COUNT"
         # 클래스 파일 다운로드 및 번역 (필요 시 확장)
     fi
+    log "클래스 수: $CLASS_COUNT"
 fi
 log "✅ 클래스 파일 동기화 완료"
 
@@ -93,7 +101,17 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
 cmake .. -DCMAKE_BUILD_TYPE=Release > /dev/null 2>&1 || error "CMake 실패"
-make -j$(sysctl -n hw.ncpu) > /dev/null 2>&1 || error "빌드 실패"
+
+# CPU 코어 수 결정 (macOS/Linux 호환)
+if command -v sysctl >/dev/null 2>&1; then
+    NCPU=$(sysctl -n hw.ncpu 2>/dev/null || echo "4")
+elif command -v nproc >/dev/null 2>&1; then
+    NCPU=$(nproc)
+else
+    NCPU=4
+fi
+
+make -j$NCPU > /dev/null 2>&1 || error "빌드 실패"
 
 BINARY_SIZE=$(du -h "$BUILD_DIR/litecnn_server" | cut -f1)
 log "✅ 빌드 완료: $BINARY_SIZE"
