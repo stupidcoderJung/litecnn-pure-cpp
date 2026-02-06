@@ -47,3 +47,27 @@ scripts/extract_weights_remote.sh
 scripts/create_dummy_weights.py
 weights/*.bin
 weights/*.pth
+
+# MPS Development Files
+Makefile.cycle13*
+export_cycle13_mps.py
+export_mps_torchscript.py
+debug_*.cpp
+inspect_*.py
+train_cycle*.py
+LiteCNNPro.py
+
+# Temporary Build Files
+build_libtorch_server.sh
+final_test.sh
+
+# Backup Directories
+backups/
+model_backups/
+
+# Temporary Documentation
+MPS_MISSION_COMPLETE.md
+QUICK_START_MPS.md
+
+# LibTorch (large binary)
+libtorch/

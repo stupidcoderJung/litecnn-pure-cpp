@@ -418,3 +418,61 @@ MIT License
 **Memory Usage**: 7MB per server (95% reduction from PyTorch)  
 **Dual Server**: AS-IS (8891) + TO-BE (8892)  
 **Status**: Production Ready ✅
+
+## MPS-Accelerated Server (Port 8893)
+
+**NEW!** LibTorch + Metal Performance Shaders 최적화 서버
+
+### 성능
+- **Inference**: 6-8ms (Pure C++ 대비 35배 빠름)
+- **Device**: M1 GPU (MPS)
+- **Model**: Cycle 13 (62.60% accuracy)
+- **Features**: 
+  - 한국어/영어 견종 이름
+  - Multipart 이미지 업로드
+  - MPS GPU 가속
+
+### 빌드 및 실행
+```bash
+# 빌드
+make -f Makefile.mps
+
+# 실행
+./build/litecnn_server_mps
+```
+
+### API
+```bash
+# Health check
+curl http://localhost:8893/health
+
+# 이미지 업로드
+curl -X POST http://localhost:8893/predict \
+  -F "image=@/path/to/dog.jpg" | jq
+
+# JSON 경로
+curl -X POST http://localhost:8893/predict \
+  -H "Content-Type: application/json" \
+  -d '{"image_path": "/path/to/dog.jpg", "top_k": 3}' | jq
+```
+
+### 응답 예시
+```json
+{
+  "predictions": [
+    {
+      "rank": 1,
+      "class_id": 12,
+      "breed_en": "Border collie",
+      "breed_ko": "보더 콜리",
+      "confidence": 57.08
+    }
+  ],
+  "timing": {
+    "total_ms": 11.103,
+    "preprocess_ms": 6.997,
+    "inference_ms": 7.486,
+    "transfer_ms": 3.509
+  }
+}
+```
